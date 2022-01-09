@@ -1,11 +1,19 @@
 import os, pathlib, requests
-
-import flask
 from flask import Flask, session, abort, redirect, request, flash, render_template
 from pip._vendor import cachecontrol
 import google.auth.transport.requests
 from google.oauth2 import id_token
 from google_auth_oauthlib.flow import Flow
+import sqlite3
+
+conn = sqlite3.connect('user.db', check_same_thread=False)
+c = conn.cursor()
+c.execute("""CREATE TABLE users(
+            GOOGLE_ID integer,
+            NAME text,
+            EMAIL text)
+            """)
+
 
 client_secret_file = os.path.join(pathlib.Path(__file__).parent, "client_secret.json")
 GOOGLE_CLIENT_ID = "887569292704-m92pcj08v19ua0i28j7gf5b5qepie0e7.apps.googleusercontent.com"
@@ -22,6 +30,13 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 @app.route("/")
 def index():
     return render_template("index.html")
+
+@app.route("/users")
+def users():
+    c.execute("SELECT * FROM users")
+    flash(c.fetchall(), "info")
+    conn.commit()
+    return redirect("/")
 
 
 def require_login(function):
@@ -68,12 +83,17 @@ def callback():
 def logout():
     session.clear()
     flash("You have been logged out!", "info")
-    return redirect("/",)
+    return redirect("/")
 
 
 @app.route("/protected")
 @require_login
 def protected():
+    c.execute(f"SELECT * FROM users WHERE GOOGLE_ID={session['google_id']}")
+    row = c.fetchone()
+    if row is None:
+        c.execute("INSERT INTO users VALUES (?, ?, ?)", (session['google_id'], session['name'], session['email'] ))
+        conn.commit()
     return f"{type(session)}<h1>Protected site.</h1>" \
            f"<br>Your data:" \
            f"<br/>Name: {session['name']}" \
