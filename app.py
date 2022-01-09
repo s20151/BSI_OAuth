@@ -1,3 +1,7 @@
+#authors:
+#Norbert Leśniak s20151
+#Artur Piszczatowski s20487
+
 import os, pathlib, requests
 from flask import Flask, session, abort, redirect, request, flash, render_template
 from pip._vendor import cachecontrol
