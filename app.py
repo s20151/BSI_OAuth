@@ -1,5 +1,7 @@
 import os, pathlib, requests
-from flask import Flask, session, abort, redirect, request
+
+import flask
+from flask import Flask, session, abort, redirect, request, flash, render_template
 from pip._vendor import cachecontrol
 import google.auth.transport.requests
 from google.oauth2 import id_token
@@ -11,7 +13,7 @@ flow = Flow.from_client_secrets_file(client_secrets_file=client_secret_file,
                                      scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
                                      redirect_uri="http://127.0.0.1:5000/callback"
                                      )
-app = Flask("BSI Login App")
+app = Flask("BSI Login App", template_folder="./templates")
 app.secret_key = "testowy_tajny_klucz"
 
 # bypassing https requirement
@@ -19,8 +21,18 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 @app.route("/")
 def index():
-    return "<h1>Strona startowa</h1>" \
-           "<br><a href='/login'><button>Logowanie</button></a>"
+    return render_template("index.html")
+
+
+def require_login(function):
+    def wrapper(*args, **kwargs):
+        if "google_id" not in session:
+            return abort(401)  # unauthorized
+        else:
+            return function()
+
+    return wrapper
+
 
 
 @app.route("/login")
@@ -28,10 +40,6 @@ def login():
     authorization_url, state = flow.authorization_url()
     session["state"] = state
     return redirect(authorization_url)
-
-@app.route("/logout")
-def logout():
-    pass
 
 
 @app.route("/callback")
@@ -51,27 +59,28 @@ def callback():
         request=token_request,
         audience=GOOGLE_CLIENT_ID
     )
-    return id_info
-    # session["google_id"] = id_info.get("sub")
-    # session["name"] = id_info.get("name")
-    # return redirect("/protected_area")
+    session["name"] = id_info.get("name")
+    session["google_id"] = id_info.get("sub")
+    session["email"] = id_info.get("email")
+    return redirect("/protected")
 
-
-def require_login(function):
-    def wrapper(*args, **kwargs):
-        if "google_id" not in session:
-            return abort(401)  # unauthorized
-        else:
-            return function
-
-    return wrapper
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been logged out!", "info")
+    return redirect("/",)
 
 
 @app.route("/protected")
 @require_login
 def protected():
-    return "Protected site."
+    return f"{type(session)}<h1>Protected site.</h1>" \
+           f"<br>Your data:" \
+           f"<br/>Name: {session['name']}" \
+           f"<br/>Email: {session['email']}"\
+           "<br/><a href='/logout'><button>Wylogowanie</button></a>"
 
 
 if __name__ == "__main__":
     app.run()
+

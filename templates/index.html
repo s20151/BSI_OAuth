@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Strona startowa</title>
+  </head>
+  <body>
+  {% block content %}
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for msg in messages %}
+          <p>{{msg}}</p>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  {% endblock %}
+    <h1>Strona startowa</h1>
+    <br/><a href='/login'><button>Logowanie</button></a>
+  </body>
+</html>
