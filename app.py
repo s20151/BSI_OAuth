@@ -45,7 +45,7 @@ def require_login(function):
 
     return wrapper
 
-
+c
 @app.route("/protected")
 @require_login
 def protected():
